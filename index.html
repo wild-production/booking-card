@@ -2759,14 +2759,38 @@
 
   function offerDownload(blob, canvas){
     useCapability("downloads").then(function(downloads){
-      if(!downloads){ return showImageFallback(canvas); }
+      if(!downloads){ return tryShareOrFallback(blob, canvas); }
       downloads.save({filename: filenameFor(), data: blob}).then(function(res){
         showSocialCta();
       }).catch(function(err){
         if(err && err.code==="declined"){ return; }
-        showImageFallback(canvas);
+        tryShareOrFallback(blob, canvas);
       });
-    }).catch(function(){ showImageFallback(canvas); });
+    }).catch(function(){ tryShareOrFallback(blob, canvas); });
+  }
+
+  // On phones, prefer the native share sheet (one tap "储存到照片/儲存圖片")
+  // over the long-press-to-save fallback, since the fallback requires the
+  // user to find and hold the image, and some mobile browsers don't show a
+  // save option on long-press at all. Falls back to the long-press overlay
+  // only when Web Share (with file support) isn't available, or the user's
+  // browser rejects the share for a reason other than cancelling.
+  function tryShareOrFallback(blob, canvas){
+    if(navigator.share && navigator.canShare){
+      try{
+        var file = new File([blob], filenameFor(), {type:"image/png"});
+        if(navigator.canShare({files:[file]})){
+          navigator.share({files:[file], title: filenameFor()}).then(function(){
+            showSocialCta();
+          }).catch(function(err){
+            if(err && err.name==="AbortError"){ return; }
+            showImageFallback(canvas);
+          });
+          return;
+        }
+      }catch(e){ /* fall through to image fallback */ }
+    }
+    showImageFallback(canvas);
   }
 
   function showImageFallback(canvas){
