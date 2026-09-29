@@ -1155,9 +1155,10 @@
     </div>
     <p class="hint" style="margin-bottom:12px;">追蹤最新消息，掌握工具更新與使用技巧：</p>
     <p class="hint" id="socialCtaEmptyHint" hidden>（IG／LINE 連結還沒設定，這裡先預留版位）</p>
-    <div style="display:flex; gap:10px;">
+    <div style="display:flex; flex-direction:column; gap:10px;">
       <a class="btn primary" id="socialCtaIg" href="#" target="_blank" rel="noopener" style="text-decoration:none;" hidden>📷 追蹤 IG</a>
       <a class="btn primary" id="socialCtaLine" href="#" target="_blank" rel="noopener" style="text-decoration:none;" hidden>💬 加 LINE@</a>
+      <a class="btn primary" id="socialCtaConsult" href="#" target="_blank" rel="noopener" style="text-decoration:none;" hidden>🙋 我想諮詢</a>
     </div>
   </div>
 </div>
@@ -1170,8 +1171,9 @@
       <button class="iconbtn" id="feedbackClose">✕</button>
     </div>
     <p class="hint" style="margin-bottom:12px;">使用上有任何問題、建議或想加的功能，都歡迎留言告訴我。</p>
-    <iframe id="feedbackFormFrame" src="" title="意見回饋表單" style="width:100%; height:420px; border:none; border-radius:12px; background:#fff;" hidden></iframe>
-    <p class="hint" id="feedbackNoFormHint" hidden>意見回饋表單還沒設定好，麻煩晚點再回來看看。</p>
+    <textarea id="feedbackText" rows="5" placeholder="在這裡輸入你的留言…" style="width:100%; box-sizing:border-box; border:1.3px solid var(--line); border-radius:12px; padding:10px 12px; font:inherit; font-size:14px; color:var(--ink); background:var(--surface); resize:vertical;"></textarea>
+    <p class="hint" id="feedbackStatus" style="margin-top:8px; min-height:16px;"></p>
+    <button type="button" class="btn primary sheet-done-btn" id="feedbackSubmit" style="margin-top:4px;">送出</button>
   </div>
 </div>
 
@@ -1204,15 +1206,16 @@
   var AUTHOR_TICKER_TEXT = "📣 快訊版位：文字之後補上，敬請期待！"; // placeholder — 待 Wild 提供實際文字
   var AUTHOR_TICKER_LINK = ""; // placeholder — 待 Wild 提供要連去的社群網址
   var SOCIAL_LINKS = {
-    ig:   "https://www.instagram.com/__tian.xvii__/", // 目前用一般 IG 帳號連結，之後串 ManyChat 再換成 ManyChat 給的連結
-    line: ""  // 待補：先用一般 LINE 官方帳號連結，之後串 ManyChat 再換成 ManyChat 給的連結
+    ig:      "https://www.instagram.com/__tian.xvii__/", // 目前用一般 IG 帳號連結，之後串 ManyChat 再換成 ManyChat 給的連結
+    line:    "https://line.me/R/ti/p/@893qyjui", // 目前用一般 LINE 官方帳號連結，之後串 ManyChat 再換成 ManyChat 給的連結
+    consult: "https://tian-entre.com/" // 形象策略諮詢頁面
   };
-  // 意見回饋按鈕（工具頁右上角）要連去的外部連結：可以填 Google 表單網址，或 "mailto:你的信箱" 這種格式。
-  // 留空的話按鈕還是會顯示，但點下去沒有動作（可以先放著，等妳準備好連結再填）。
-  // 意見回饋表單：填「Google 表單」的分享網址（一般的 .../viewform 網址即可，程式會自動轉成可以嵌入頁面的版本）。
-  // 表單建立方式：到 forms.google.com 建一個新表單（想收哪些欄位自己定，例如「意見類型」「內容」「聯絡方式（選填）」），
-  // 右上角「傳送」→ 複製連結，貼在下面這行就好，回覆會自動彙整進表單自帶的那份 Google 試算表，不需要額外設定。
-  var FEEDBACK_LINK = ""; // placeholder — 待 Wild 提供 Google 表單連結
+  // 意見回饋：App 裡面是一個開放式留言框（不是 Google 表單），送出時只記錄留言內容跟時間戳記，
+  // 直接寫進 Google 試算表。這裡要填的是 Google Apps Script 部署成 Web App 後拿到的 /exec 網址。
+  // 設定方式：開一份新的 Google 試算表 → 上方選單「擴充功能」→「Apps Script」→ 貼上留言收集用的
+  // doPost(e) 程式碼 → 右上角「部署」→「新增部署作業」→ 類型選「網頁應用程式」，執行身分「我」，
+  // 誰可以存取「所有人」→ 部署後複製那個 .../exec 網址，貼在下面這行就好。
+  var FEEDBACK_LINK = "https://script.google.com/macros/s/AKfycbwCcvz_QO9_Qp2SJlYYww0ckaI-7Kpe8GJvtGXdc8RIjXFyCD-2DFxU02nAdnKac3jB/exec";
 
   // ---- 使用量統計（輕量、去識別化）----
   // 只會記錄「有人開啟這個工具」跟「有人成功匯出小卡幾次」這兩個數字，不會送出店名、時段等任何實際內容。
@@ -1263,15 +1266,6 @@
 
   // "隨機搭配" no longer draws from a fixed preset list — see randomBgColor()/randomAccentColor()
   // below, which generate any hue on the fly so every click is genuinely different.
-
-  // 把一般的 Google 表單分享連結（.../viewform 或帶 ?usp=... 的版本）轉成可以嵌入 <iframe> 的版本
-  // （加上 embedded=true）。不是 Google 表單網址就回傳空字串，外層會顯示「還沒設定」的提示。
-  function toEmbeddedFormUrl(link){
-    if(!link || link.indexOf("docs.google.com/forms") === -1) return "";
-    var base = link.split("?")[0].replace(/\/(viewform|formResponse)\/?$/,"/viewform");
-    if(!/\/viewform$/.test(base)) base += "/viewform";
-    return base + "?embedded=true";
-  }
 
   function hexToRgba(hex, alpha){
     var h = hex.replace("#","");
@@ -2734,7 +2728,8 @@
     if(state.mode!=="preview"){ setMode("preview"); }
     var card = document.getElementById("calendarCard");
     var btn = document.getElementById("exportBtn");
-    btn.disabled = true; var oldLabel = btn.innerHTML; btn.textContent = "產生中…";
+    btn.disabled = true; var oldLabel = btn.innerHTML;
+    btn.innerHTML = '<span style="font-size:12px; line-height:1.2; white-space:nowrap;">產生中…</span>';
     // allow the preview re-render to paint before capture
     requestAnimationFrame(function(){ requestAnimationFrame(function(){
       html2canvas(card, {backgroundColor:null, scale:2, useCORS:true}).then(function(canvas){
@@ -2879,26 +2874,42 @@
 
     var feedbackBtn = document.getElementById("feedbackBtn");
     var feedbackOverlay = document.getElementById("feedbackOverlay");
-    var feedbackFormFrame = document.getElementById("feedbackFormFrame");
-    var feedbackNoFormHint = document.getElementById("feedbackNoFormHint");
-    if(feedbackBtn && feedbackOverlay && feedbackFormFrame){
+    var feedbackText = document.getElementById("feedbackText");
+    var feedbackStatus = document.getElementById("feedbackStatus");
+    var feedbackSubmit = document.getElementById("feedbackSubmit");
+    if(feedbackBtn && feedbackOverlay && feedbackText){
       feedbackBtn.addEventListener("click", function(){
         trackEvent("feedback-click");
-        // 直接把 Google 表單嵌進頁面裡填寫，不用跳轉離開網站；填完的內容會自動彙整到表單
-        // 後台自己連的那份 Google 試算表，妳隨時能去看，不需要我幫忙轉寄。
-        var formUrl = toEmbeddedFormUrl(FEEDBACK_LINK);
-        if(formUrl){
-          feedbackFormFrame.src = formUrl;
-          feedbackFormFrame.hidden = false;
-          feedbackNoFormHint.hidden = true;
-        } else {
-          feedbackFormFrame.hidden = true;
-          feedbackNoFormHint.hidden = false;
-        }
+        feedbackText.value = "";
+        feedbackStatus.textContent = "";
+        feedbackSubmit.disabled = !FEEDBACK_LINK;
         feedbackOverlay.hidden = false;
       });
       document.getElementById("feedbackClose").addEventListener("click", function(){ feedbackOverlay.hidden = true; });
       feedbackOverlay.addEventListener("click", function(e){ if(e.target===feedbackOverlay) feedbackOverlay.hidden = true; });
+      feedbackSubmit.addEventListener("click", function(){
+        var msg = (feedbackText.value||"").trim();
+        if(!msg){ feedbackStatus.textContent = "請先輸入內容再送出。"; return; }
+        if(!FEEDBACK_LINK){ return; }
+        feedbackSubmit.disabled = true;
+        feedbackStatus.textContent = "送出中…";
+        // 開放式留言：只記錄留言內容跟時間戳記，寫進 Apps Script 連的那份 Google 試算表。
+        // 用 text/plain 送出是為了避開瀏覽器的 CORS 預檢請求，Apps Script 那邊直接讀 e.postData.contents 解析。
+        fetch(FEEDBACK_LINK, {
+          method: "POST",
+          mode: "no-cors",
+          headers: {"Content-Type": "text/plain;charset=utf-8"},
+          body: JSON.stringify({message: msg, timestamp: new Date().toISOString()})
+        }).then(function(){
+          feedbackStatus.textContent = "已送出，謝謝你的留言！";
+          feedbackText.value = "";
+          feedbackSubmit.disabled = false;
+          trackEvent("feedback-submit");
+        }).catch(function(){
+          feedbackStatus.textContent = "送出失敗，請檢查網路後再試一次。";
+          feedbackSubmit.disabled = false;
+        });
+      });
     }
 
     var ADDHOME_SEEN_KEY = "bookingCardTool.addHomeSeen";
@@ -2961,10 +2972,12 @@
     trackEvent("export-success"); // 計「成功匯出小卡」的次數，不管有沒有設定 IG/LINE 連結都會計入
     var igBtn = document.getElementById("socialCtaIg");
     var lineBtn = document.getElementById("socialCtaLine");
+    var consultBtn = document.getElementById("socialCtaConsult");
     var emptyHint = document.getElementById("socialCtaEmptyHint");
     igBtn.hidden = !SOCIAL_LINKS.ig; if(SOCIAL_LINKS.ig) igBtn.href = SOCIAL_LINKS.ig;
     lineBtn.hidden = !SOCIAL_LINKS.line; if(SOCIAL_LINKS.line) lineBtn.href = SOCIAL_LINKS.line;
-    if(emptyHint) emptyHint.hidden = !!(SOCIAL_LINKS.ig || SOCIAL_LINKS.line);
+    consultBtn.hidden = !SOCIAL_LINKS.consult; if(SOCIAL_LINKS.consult) consultBtn.href = SOCIAL_LINKS.consult;
+    if(emptyHint) emptyHint.hidden = !!(SOCIAL_LINKS.ig || SOCIAL_LINKS.line || SOCIAL_LINKS.consult);
     document.getElementById("socialCtaOverlay").hidden = false;
   }
 
