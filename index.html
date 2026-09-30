@@ -107,7 +107,7 @@
   .ticker-track{ flex:1; overflow:hidden; white-space:nowrap; position:relative; }
   .ticker-text{
     display:inline-block; padding-left:100%; font-size:13px; font-weight:800; color:var(--ink);
-    animation:ticker-scroll 13s linear infinite;
+    animation:ticker-scroll 9s linear infinite;
   }
   @keyframes ticker-scroll{
     0%{ transform:translateX(0); }
@@ -999,6 +999,12 @@
     </div>
 
     <div class="field">
+      <label>每週起始日</label>
+      <div class="swatchrow" id="weekStartRow"></div>
+      <p class="hint" style="margin-top:6px;">決定「週檢視」與月曆表頭第一欄是星期日還是星期一。</p>
+    </div>
+
+    <div class="field">
       <label>輸出尺寸</label>
       <div class="swatchrow" id="aspectRow"></div>
       <p class="hint" style="margin-top:6px;">選擇方形／限動等固定尺寸時，超出畫面的內容會被裁切；可以直接在下方卡片空白處按住拖曳，調整內容在畫面中的位置。</p>
@@ -1309,7 +1315,22 @@
   function parseISO(s){ var p=s.split("-").map(Number); return new Date(p[0],p[1]-1,p[2]); }
   function addDays(d,n){ var r=new Date(d); r.setDate(r.getDate()+n); return r; }
   function sameDate(a,b){ return iso(a)===iso(b); }
-  function startOfWeek(d){ var day=d.getDay(); var diff=(day===0?-6:1-day); return addDays(d,diff); }
+  // 每週起始日可由使用者設定（state.weekStartMon：true=週一開始，false=週日開始）。
+  // defaultState() 會在 state 變數賦值完成前就呼叫到這裡，所以用 typeof 檢查避免出錯。
+  function weekStartDayIndex(){
+    return (typeof state!=="undefined" && state && state.weekStartMon) ? 1 : 0;
+  }
+  function startOfWeek(d){
+    var startDay = weekStartDayIndex();
+    var diff = (d.getDay() - startDay + 7) % 7;
+    return addDays(d, -diff);
+  }
+  function orderedWeekdayLabels(){
+    var startDay = weekStartDayIndex();
+    var arr = [];
+    for(var i=0;i<7;i++){ arr.push(WEEKDAYS[(startDay+i)%7]); }
+    return arr;
+  }
 
   function pickRandomSlots(pool, count){
     var copy = pool.slice(), out = [];
@@ -1348,6 +1369,7 @@
       contentOffsetY:0,
       contentScale:1,
       fontKey:"sans",
+      weekStartMon:false,
       bgKey:"white",
       bgImage:null,
       bgCustom:{ mode:"solid", color:"#FFFFFF", from:"#FFFFFF", to:"#C9A576" },
@@ -1495,6 +1517,17 @@
       return '<button class="fontchip" data-font="'+f.key+'" style="font-family:'+f.family+';font-weight:'+(f.weight||400)+'" aria-pressed="'+(state.fontKey===f.key)+'">'+f.label+'</button>';
     }).join("");
 
+    var weekStartRow=document.getElementById("weekStartRow");
+    if(weekStartRow){
+      weekStartRow.innerHTML = [
+        {key:"sun", label:"週日"},
+        {key:"mon", label:"週一"}
+      ].map(function(w){
+        var isOn = w.key==="mon" ? !!state.weekStartMon : !state.weekStartMon;
+        return '<button class="fontchip" data-weekstart="'+w.key+'" aria-pressed="'+isOn+'">'+w.label+'</button>';
+      }).join("");
+    }
+
     var bgAccentRow=document.getElementById("bgAccentRow");
     bgAccentRow.innerHTML = ACCENTS.map(function(c){
       var isOn = state.bgKey==="customColor" && state.bgCustom && state.bgCustom.mode==="solid" && state.bgCustom.color===c;
@@ -1610,6 +1643,17 @@
       aspectRow.querySelectorAll("[data-aspect]").forEach(function(b){ b.setAttribute("aria-pressed", String(b===btn)); });
       renderCard();
     });
+
+    if(weekStartRow){
+      weekStartRow.addEventListener("click", function(e){
+        var btn=e.target.closest("[data-weekstart]"); if(!btn) return;
+        state.weekStartMon = btn.getAttribute("data-weekstart")==="mon"; saveState();
+        weekStartRow.querySelectorAll("[data-weekstart]").forEach(function(b){
+          b.setAttribute("aria-pressed", String(b===btn));
+        });
+        renderCard();
+      });
+    }
 
     var fileInput = document.createElement("input");
     fileInput.type="file"; fileInput.accept="image/*"; fileInput.hidden=true;
@@ -2631,7 +2675,7 @@
     var gridStart = startOfWeek(first);
     var todayStr = iso(new Date());
     var out = '<div class="monthgrid"><div class="weekdayhead">';
-    WEEKDAYS.forEach(function(w){ out += '<span>'+w+'</span>'; });
+    orderedWeekdayLabels().forEach(function(w){ out += '<span>'+w+'</span>'; });
     out += '</div><div class="monthrows">';
     for(var i=0;i<42;i++){
       var d = addDays(gridStart,i);
