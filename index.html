@@ -412,6 +412,17 @@
   .colorpanel input[type="color"]{
     width:40px; height:40px; border:1.5px solid var(--line); border-radius:10px; padding:0; background:none; cursor:pointer; flex:none;
   }
+  /* 休假日／額滿／月曆底色這三顆自訂色票，比照「時段主色」一樣做成圓形 */
+  #holidayColorInput, #fullBookedColorInput, #monthCellBgColorInput{
+    width:34px; height:34px; border:1.5px solid var(--line); border-radius:50%; padding:0; background:none; cursor:pointer; flex:none;
+    overflow:hidden; -webkit-appearance:none; appearance:none;
+  }
+  #holidayColorInput::-webkit-color-swatch-wrapper, #fullBookedColorInput::-webkit-color-swatch-wrapper, #monthCellBgColorInput::-webkit-color-swatch-wrapper{
+    padding:0; border-radius:50%;
+  }
+  #holidayColorInput::-webkit-color-swatch, #fullBookedColorInput::-webkit-color-swatch, #monthCellBgColorInput::-webkit-color-swatch{
+    border:none; border-radius:50%;
+  }
   .colorpanel input[type="text"]{
     flex:1; min-width:0; padding:9px 10px; border:1px solid var(--line); border-radius:9px;
     background:var(--bg); color:var(--ink); font-size:13.5px; text-transform:uppercase;
@@ -570,6 +581,7 @@
     gap:2px; cursor:pointer; background:transparent; padding:5px 2px 3px; overflow:hidden;
     position:relative; color:inherit; font:inherit; appearance:none; -webkit-appearance:none;
   }
+  #calendarCard.export-capture .today-dot{ display:none !important; }
   .monthcell .today-dot{
     position:absolute; top:3px; right:4px; width:5px; height:5px; border-radius:50%;
     background:var(--accent);
@@ -860,8 +872,21 @@
     <div class="navlabel" id="navLabel"></div>
     <button class="navbtn" id="nextBtn">›</button>
   </div>
-  <div style="display:flex; justify-content:flex-end; margin-bottom:6px;">
-    <button class="todaybtn" id="todayBtn">回到今天</button>
+  <div style="display:flex; justify-content:space-between; align-items:center; gap:8px; margin-bottom:6px;">
+    <div id="weekPickWrap" style="position:relative; display:flex; align-items:center; gap:6px;" hidden>
+      <button type="button" class="todaybtn" id="weekPickBtn" style="display:inline-flex; align-items:center; gap:4px;">
+        📅 <span id="weekPickLabel">自選起始日</span>
+      </button>
+      <button type="button" class="iconbtn" id="weekPickClear" title="取消自訂範圍" style="width:28px; height:28px; font-size:13px;" hidden>✕</button>
+      <div id="weekPickPopover" style="position:absolute; top:0; left:calc(100% + 6px); z-index:100; background:var(--bg); border:1px solid var(--line-strong); border-radius:12px; padding:10px; box-shadow:0 14px 30px -10px rgba(23,20,15,.35); white-space:nowrap;" hidden>
+        <label style="display:block; font-size:11.5px; color:var(--muted); margin-bottom:6px;">選一天當這週的第一天</label>
+        <input type="date" id="weekPickInput" style="padding:8px 10px; border-radius:8px; border:1px solid var(--line); background:var(--bg); color:var(--ink); font:inherit; font-size:14px;">
+      </div>
+    </div>
+    <div style="display:flex; align-items:center; gap:8px;">
+      <button type="button" class="todaybtn" id="undoEditBtn" title="復原最近一次的時段／休假日／額滿編輯" disabled>↩ 上一步編輯</button>
+      <button class="todaybtn" id="todayBtn">回到今天</button>
+    </div>
   </div>
 
   <div class="modebar">
@@ -1016,6 +1041,14 @@
       </div>
     </div>
 
+    <div class="field">
+      <label style="display:flex; align-items:center; justify-content:space-between;">
+        <span>字距</span><span id="letterSpacingValue">0</span>
+      </label>
+      <input type="range" id="letterSpacingSlider" min="-30" max="150" step="1" value="0" style="width:100%;">
+      <p class="hint" style="margin-top:6px;">調整卡片文字的字元間距。</p>
+    </div>
+
     <button type="button" class="btn primary sheet-done-btn" id="layoutSheetDone">完成 ✓</button>
   </div>
 </div>
@@ -1116,6 +1149,44 @@
           <button type="button" class="pill" id="accentCustomApply">套用</button>
           <button type="button" class="pill" id="accentCustomCancel">取消</button>
         </div>
+      </div>
+    </div>
+
+    <div class="field">
+      <label>休假日顏色</label>
+      <div class="colorpanel">
+        <div class="colorpane-row">
+          <input type="color" id="holidayColorInput" value="#2A2620">
+        </div>
+      </div>
+    </div>
+
+    <div class="field">
+      <label>額滿顏色</label>
+      <div class="colorpanel">
+        <div class="colorpane-row">
+          <input type="color" id="fullBookedColorInput" value="#C23B3B">
+        </div>
+        <div class="colorpanel-actions">
+          <button type="button" class="pill" id="fullBookedColorReset">恢復預設</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="field">
+      <label style="display:flex; align-items:center; justify-content:space-between;">
+        <span>月曆格子底色</span>
+        <button type="button" class="fontchip" id="monthCellBgToggle" aria-pressed="false">啟用</button>
+      </label>
+      <div id="monthCellBgPanel" class="colorpanel" hidden>
+        <div class="colorpane-row">
+          <input type="color" id="monthCellBgColorInput" value="#F6C453">
+          <input type="text" id="monthCellBgHexInput" maxlength="7" value="#F6C453" placeholder="#RRGGBB">
+        </div>
+        <label style="display:flex; align-items:center; justify-content:space-between; font-size:12.5px; color:var(--muted); margin:12px 0 4px;">
+          <span>透明度</span><span id="monthCellBgOpacityValue">18%</span>
+        </label>
+        <input type="range" id="monthCellBgOpacitySlider" min="0" max="100" step="1" value="18" style="width:100%;">
       </div>
     </div>
 
@@ -1331,6 +1402,13 @@
     for(var i=0;i<7;i++){ arr.push(WEEKDAYS[(startDay+i)%7]); }
     return arr;
   }
+  // 週檢視可讓使用者自選任意一天當「這週」的第一天（state.weekCustomStart），
+  // 此時不再套用週日／週一的自動對齊規則，refDate 本身就是自訂範圍的起始日。
+  // 月曆表頭／月檢視格線一律維持原本的 startOfWeek() 對齊，不受這個設定影響。
+  function weekStart(d){
+    if(typeof state!=="undefined" && state && state.weekCustomStart) return d;
+    return startOfWeek(d);
+  }
 
   function pickRandomSlots(pool, count){
     var copy = pool.slice(), out = [];
@@ -1370,6 +1448,11 @@
       contentScale:1,
       fontKey:"sans",
       weekStartMon:false,
+      weekCustomStart:false,
+      letterSpacing:0,
+      holidayColor:"",
+      fullBookedColor:"",
+      monthCellBg:{enabled:false, color:"#F6C453", opacity:0.18},
       bgKey:"white",
       bgImage:null,
       bgCustom:{ mode:"solid", color:"#FFFFFF", from:"#FFFFFF", to:"#C9A576" },
@@ -1461,7 +1544,39 @@
     }).join("");
   }
 
+  // 編輯的「上一步」功能：只存在記憶體裡（不寫進 localStorage），保留最近幾筆
+  // 時段／休假日／額滿標記的快照，讓使用者可以復原最近一次編輯。
+  var undoStack = [];
+  var UNDO_MAX = 20;
+  function pushUndoSnapshot(){
+    undoStack.push({
+      availability: JSON.parse(JSON.stringify(state.availability||{})),
+      holidays: (state.holidays||[]).slice(),
+      fullyBooked: (state.fullyBooked||[]).slice()
+    });
+    if(undoStack.length>UNDO_MAX) undoStack.shift();
+    updateUndoBtn();
+  }
+  function undoLastEdit(){
+    var snap = undoStack.pop();
+    if(!snap) return;
+    state.availability = snap.availability;
+    state.holidays = snap.holidays;
+    state.fullyBooked = snap.fullyBooked;
+    saveState();
+    updateUndoBtn();
+    renderCard();
+    if(state.openDay) renderSheet();
+    renderHolidayList();
+    renderFullBookedList();
+  }
+  function updateUndoBtn(){
+    var btn = document.getElementById("undoEditBtn");
+    if(btn) btn.disabled = undoStack.length===0;
+  }
+
   function toggleSlot(dateStr, slot){
+    pushUndoSnapshot();
     var list = state.availability[dateStr] ? state.availability[dateStr].slice() : [];
     var idx = list.indexOf(slot);
     if(idx>=0) list.splice(idx,1); else list.push(slot);
@@ -1471,6 +1586,7 @@
   }
 
   function setDaySlots(dateStr, list){
+    pushUndoSnapshot();
     if(list.length===0) delete state.availability[dateStr];
     else state.availability[dateStr]=list.slice().sort();
     saveState();
@@ -1980,12 +2096,49 @@
     document.getElementById("prevBtn").addEventListener("click", function(){ navigate(-1); });
     document.getElementById("nextBtn").addEventListener("click", function(){ navigate(1); });
     document.getElementById("todayBtn").addEventListener("click", function(){
-      state.refDate = iso(new Date()); saveState(); renderCard();
+      state.refDate = iso(new Date()); state.weekCustomStart = false; saveState(); renderCard();
     });
+    var undoEditBtn = document.getElementById("undoEditBtn");
+    if(undoEditBtn){
+      undoEditBtn.addEventListener("click", undoLastEdit);
+      updateUndoBtn();
+    }
+
+    var weekPickBtn = document.getElementById("weekPickBtn");
+    var weekPickInput = document.getElementById("weekPickInput");
+    var weekPickClear = document.getElementById("weekPickClear");
+    var weekPickPopover = document.getElementById("weekPickPopover");
+    // 不用透明覆蓋原生輸入框那種做法（在這個預覽環境裡點了常常沒反應），
+    // 改成點按鈕打開一個小面板，裡面是一個正常、看得到的日期欄位，跟休假日／額滿
+    // 那兩個日期欄位同一種做法，行為比較穩定、也更清楚「要去哪裡選日期」。
+    if(weekPickBtn && weekPickPopover){
+      weekPickBtn.addEventListener("click", function(e){
+        e.stopPropagation();
+        weekPickPopover.hidden = !weekPickPopover.hidden;
+      });
+      document.addEventListener("click", function(e){
+        if(weekPickPopover.hidden) return;
+        if(e.target===weekPickBtn || weekPickPopover.contains(e.target)) return;
+        weekPickPopover.hidden = true;
+      });
+    }
+    if(weekPickInput){
+      weekPickInput.addEventListener("change", function(e){
+        var val = e.target.value; if(!val) return;
+        state.refDate = val; state.weekCustomStart = true; saveState(); renderCard();
+        if(weekPickPopover) weekPickPopover.hidden = true;
+      });
+    }
+    if(weekPickClear){
+      weekPickClear.addEventListener("click", function(){
+        state.weekCustomStart = false; saveState(); renderCard();
+      });
+    }
 
     document.getElementById("resetBtn").addEventListener("click", function(){
       var ok = window.confirm("確定要清除全部時段嗎？這會把你設定過的所有週次、所有月份的時段一次清空，無法復原。");
       if(!ok) return;
+      pushUndoSnapshot();
       state.availability = {}; saveState(); renderCard();
       if(state.openDay) renderSheet();
       closeActionSheet("basicSheetOverlay");
@@ -1995,6 +2148,7 @@
       var input = document.getElementById("holidayInput");
       var ds = input.value;
       if(!ds) return;
+      pushUndoSnapshot();
       if(!state.holidays) state.holidays = [];
       if(state.holidays.indexOf(ds)<0){ state.holidays.push(ds); saveState(); }
       input.value = "";
@@ -2005,6 +2159,7 @@
     document.getElementById("holidayList").addEventListener("click", function(e){
       var btn = e.target.closest("[data-holiday]"); if(!btn) return;
       var ds = btn.getAttribute("data-holiday");
+      pushUndoSnapshot();
       state.holidays = (state.holidays||[]).filter(function(x){ return x!==ds; });
       saveState(); renderHolidayList(); renderCard();
       if(state.openDay) renderSheet();
@@ -2014,6 +2169,7 @@
       var input = document.getElementById("fullBookedInput");
       var ds = input.value;
       if(!ds) return;
+      pushUndoSnapshot();
       if(!state.fullyBooked) state.fullyBooked = [];
       if(state.fullyBooked.indexOf(ds)<0){ state.fullyBooked.push(ds); saveState(); }
       input.value = "";
@@ -2024,13 +2180,15 @@
     document.getElementById("fullBookedList").addEventListener("click", function(e){
       var btn = e.target.closest("[data-fullbooked]"); if(!btn) return;
       var ds = btn.getAttribute("data-fullbooked");
+      pushUndoSnapshot();
       state.fullyBooked = (state.fullyBooked||[]).filter(function(x){ return x!==ds; });
       saveState(); renderFullBookedList(); renderCard();
       if(state.openDay) renderSheet();
     });
 
     document.getElementById("copyLastWeekBtn").addEventListener("click", function(){
-      var curStart = startOfWeek(parseISO(state.refDate));
+      pushUndoSnapshot();
+      var curStart = weekStart(parseISO(state.refDate));
       var prevStart = addDays(curStart, -7);
       for(var i=0;i<7;i++){
         var prevDate = iso(addDays(prevStart,i));
@@ -2251,7 +2409,7 @@
     var d = parseISO(state.refDate);
     var label, sub;
     if(state.view==="week"){
-      var mon = startOfWeek(d), sun = addDays(mon,6);
+      var mon = weekStart(d), sun = addDays(mon,6);
       label = (mon.getMonth()+1)+"/"+mon.getDate()+" – "+(sun.getMonth()+1)+"/"+sun.getDate();
       sub = mon.getFullYear()+" 年第 "+isoWeekNo(mon)+" 週";
     } else {
@@ -2259,6 +2417,23 @@
       sub = "月檢視";
     }
     document.getElementById("navLabel").innerHTML = label + "<small>"+sub+"</small>";
+
+    var weekPickWrap = document.getElementById("weekPickWrap");
+    if(weekPickWrap){
+      weekPickWrap.hidden = state.view!=="week";
+      if(state.view!=="week"){
+        var weekPickPopoverHide = document.getElementById("weekPickPopover");
+        if(weekPickPopoverHide) weekPickPopoverHide.hidden = true;
+      }
+      var weekPickLabel = document.getElementById("weekPickLabel");
+      var weekPickClear = document.getElementById("weekPickClear");
+      var weekPickInput = document.getElementById("weekPickInput");
+      if(weekPickLabel){
+        weekPickLabel.textContent = state.weekCustomStart ? ("自 "+(d.getMonth()+1)+"/"+d.getDate()+" 起") : "自選起始日";
+      }
+      if(weekPickClear){ weekPickClear.hidden = !state.weekCustomStart; }
+      if(weekPickInput){ weekPickInput.value = state.refDate; }
+    }
   }
   function isoWeekNo(d){
     var t=new Date(d); t.setHours(0,0,0,0);
@@ -2349,7 +2524,7 @@
     var d = parseISO(state.refDate);
     var title = state.shopName ? esc(state.shopName) : "本週可預約時段";
     var range = state.view==="week"
-      ? rangeLabel(startOfWeek(d), addDays(startOfWeek(d),6))
+      ? rangeLabel(weekStart(d), addDays(weekStart(d),6))
       : (d.getFullYear()+"."+pad2(d.getMonth()+1));
 
     // apply live accent (and custom text color, if chosen) by writing an inline style block scoped to the card
@@ -2383,7 +2558,13 @@
     // so the label sitting ON TOP of it needs to follow the accent's own darkness, not a fixed
     // color — otherwise a dark accent + the app's fixed dark --accent-ink text disappears.
     var accentOnColor = isDarkColor(state.accent) ? "#F5F1E9" : "#12140A";
-    var html = '<style>#calendarCard{--accent:'+state.accent+';} #calendarCard .slotchip.on, #calendarCard .today-mark{background:'+state.accent+' !important; border-color:'+state.accent+' !important; color:'+accentOnColor+' !important;} #calendarCard .monthcell .dot{background:'+state.accent+';} #calendarCard .monthcell.has .num{color:'+state.accent+';} '+textCss+titleCss+borderCss+'</style>';
+    var letterSpacingCss = (state.letterSpacing) ? ('#calendarCard{ letter-spacing:'+(state.letterSpacing/1000)+'em; }') : "";
+    var holidayCss = state.holidayColor ? (' #calendarCard .monthcell .holiday-tag{ color:'+state.holidayColor+' !important; } #calendarCard .emptyday.holiday-note{ color:'+state.holidayColor+' !important; }') : "";
+    var fullBookedCss = state.fullBookedColor ? (' #calendarCard .monthcell.full .num{ color:'+state.fullBookedColor+' !important; }') : "";
+    var monthCellBgCss = (state.monthCellBg && state.monthCellBg.enabled && state.monthCellBg.color)
+      ? (' #calendarCard .monthcell{ background:'+hexToRgba(state.monthCellBg.color, state.monthCellBg.opacity==null?0.18:state.monthCellBg.opacity)+' !important; }')
+      : "";
+    var html = '<style>#calendarCard{--accent:'+state.accent+';} #calendarCard .slotchip.on, #calendarCard .today-mark{background:'+state.accent+' !important; border-color:'+state.accent+' !important; color:'+accentOnColor+' !important;} #calendarCard .monthcell .dot{background:'+state.accent+';} #calendarCard .monthcell.has .num{color:'+state.accent+';} '+textCss+titleCss+borderCss+letterSpacingCss+holidayCss+fullBookedCss+monthCellBgCss+'</style>';
 
     var tpl = TEMPLATES.filter(function(t){return t.key===state.templateKey;})[0] || TEMPLATES[0];
     html += '<div class="cardcontent" id="cardContent">' + tpl.render(state.view, d, title, range) + '</div>';
@@ -2481,6 +2662,82 @@
     });
   }
 
+  function setupHolidayFullColorPickers(){
+    var hColor = document.getElementById("holidayColorInput");
+    var hReset = document.getElementById("holidayColorReset");
+    var fColor = document.getElementById("fullBookedColorInput");
+    var fHex = document.getElementById("fullBookedColorHex");
+    var fReset = document.getElementById("fullBookedColorReset");
+    if(!hColor || !fColor) return;
+    if(state.holidayColor){ hColor.value = state.holidayColor; }
+    if(state.fullBookedColor){ fColor.value = state.fullBookedColor; if(fHex) fHex.value = state.fullBookedColor.toUpperCase(); }
+    function applyHoliday(hex){
+      if(!/^#[0-9a-fA-F]{6}$/.test(hex)) return;
+      state.holidayColor = hex; hColor.value = hex; saveState(); renderCard();
+    }
+    function applyFullBooked(hex){
+      if(!/^#[0-9a-fA-F]{6}$/.test(hex)) return;
+      state.fullBookedColor = hex; if(fHex) fHex.value = hex.toUpperCase(); fColor.value = hex; saveState(); renderCard();
+    }
+    hColor.addEventListener("input", function(){ applyHoliday(hColor.value); });
+    fColor.addEventListener("input", function(){ applyFullBooked(fColor.value); });
+    if(fHex) fHex.addEventListener("change", function(){ applyFullBooked(fHex.value); });
+    if(hReset) hReset.addEventListener("click", function(){ state.holidayColor=""; hColor.value="#2A2620"; saveState(); renderCard(); });
+    if(fReset) fReset.addEventListener("click", function(){ state.fullBookedColor=""; if(fHex) fHex.value=""; fColor.value="#C23B3B"; saveState(); renderCard(); });
+  }
+
+  function setupMonthCellBg(){
+    var toggle = document.getElementById("monthCellBgToggle");
+    var panel = document.getElementById("monthCellBgPanel");
+    var colorInput = document.getElementById("monthCellBgColorInput");
+    var hexInput = document.getElementById("monthCellBgHexInput");
+    var opacitySlider = document.getElementById("monthCellBgOpacitySlider");
+    var opacityValue = document.getElementById("monthCellBgOpacityValue");
+    if(!toggle || !state.monthCellBg) return;
+    var cfg = state.monthCellBg;
+    toggle.setAttribute("aria-pressed", String(!!cfg.enabled));
+    panel.hidden = !cfg.enabled;
+    colorInput.value = cfg.color || "#F6C453";
+    hexInput.value = (cfg.color || "#F6C453").toUpperCase();
+    var opPct = Math.round((cfg.opacity==null?0.18:cfg.opacity)*100);
+    opacitySlider.value = opPct;
+    opacityValue.textContent = opPct + "%";
+    toggle.addEventListener("click", function(){
+      cfg.enabled = !cfg.enabled;
+      toggle.setAttribute("aria-pressed", String(cfg.enabled));
+      panel.hidden = !cfg.enabled;
+      saveState(); renderCard();
+    });
+    function applyColor(hex){
+      if(!/^#[0-9a-fA-F]{6}$/.test(hex)) return;
+      cfg.color = hex; colorInput.value = hex; hexInput.value = hex.toUpperCase(); saveState(); renderCard();
+    }
+    colorInput.addEventListener("input", function(){ applyColor(colorInput.value); });
+    hexInput.addEventListener("change", function(){ applyColor(hexInput.value); });
+    opacitySlider.addEventListener("input", function(){
+      cfg.opacity = Number(opacitySlider.value)/100;
+      opacityValue.textContent = opacitySlider.value + "%";
+      renderCard();
+    });
+    opacitySlider.addEventListener("change", function(){ saveState(); });
+  }
+
+  function setupLetterSpacing(){
+    var slider = document.getElementById("letterSpacingSlider");
+    var valueLabel = document.getElementById("letterSpacingValue");
+    if(!slider) return;
+    slider.value = state.letterSpacing || 0;
+    if(valueLabel) valueLabel.textContent = slider.value;
+    slider.addEventListener("input", function(){
+      state.letterSpacing = Number(slider.value);
+      if(valueLabel) valueLabel.textContent = slider.value;
+      renderCard();
+    });
+    slider.addEventListener("change", function(){
+      saveState();
+    });
+  }
+
   function rangeLabel(mon,sun){
     return (mon.getMonth()+1)+"/"+mon.getDate()+" - "+(sun.getMonth()+1)+"/"+sun.getDate();
   }
@@ -2531,7 +2788,7 @@
   }
 
   function renderWeekAgendaEditorial(refDate){
-    var mon = startOfWeek(refDate);
+    var mon = weekStart(refDate);
     var todayStr = iso(new Date());
     var slots = generateSlots();
     var out = '<div class="weekagenda">';
@@ -2584,7 +2841,7 @@
   }
 
   function renderWeekAgendaGrid(refDate){
-    var mon = startOfWeek(refDate);
+    var mon = weekStart(refDate);
     var todayStr = iso(new Date());
     var slots = generateSlots();
     var out = '<div class="weekagenda">';
@@ -2627,7 +2884,7 @@
   }
 
   function renderWeekAgenda(refDate){
-    var mon = startOfWeek(refDate);
+    var mon = weekStart(refDate);
     var todayStr = iso(new Date());
     var slots = generateSlots();
     var out = '<div class="weekagenda">';
@@ -2725,6 +2982,7 @@
   }
   function toggleHoliday(ds){
     if(!ds) return;
+    pushUndoSnapshot();
     if(!state.holidays) state.holidays = [];
     var idx = state.holidays.indexOf(ds);
     var added = idx<0;
@@ -2738,6 +2996,7 @@
   }
   function toggleFullBooked(ds){
     if(!ds) return;
+    pushUndoSnapshot();
     if(!state.fullyBooked) state.fullyBooked = [];
     var idx = state.fullyBooked.indexOf(ds);
     var added = idx<0;
@@ -2775,15 +3034,18 @@
     btn.disabled = true; var oldLabel = btn.innerHTML;
     btn.innerHTML = '<span style="font-size:12px; line-height:1.2; white-space:nowrap;">產生中…</span>';
     // allow the preview re-render to paint before capture
+    card.classList.add("export-capture");
     requestAnimationFrame(function(){ requestAnimationFrame(function(){
       html2canvas(card, {backgroundColor:null, scale:2, useCORS:true}).then(function(canvas){
         btn.disabled = false; btn.innerHTML = oldLabel;
+        card.classList.remove("export-capture");
         canvas.toBlob(function(blob){
           if(!blob){ return; }
           offerDownload(blob, canvas);
         }, "image/png");
       }).catch(function(err){
         btn.disabled = false; btn.innerHTML = oldLabel;
+        card.classList.remove("export-capture");
         alert("圖片產生失敗，請再試一次。");
       });
     }); });
@@ -3038,6 +3300,9 @@
     buildChrome();
     setupCardDrag();
     setupCardScale();
+    setupLetterSpacing();
+    setupHolidayFullColorPickers();
+    setupMonthCellBg();
     renderCard();
   }
 
